@@ -1,0 +1,112 @@
+// screens/payment/razorpay_payment.dart
+import 'package:flutter/material.dart';
+import '../order/payment_success.dart';
+import 'package:provider/provider.dart';
+import '../../providers/cart_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+
+class RazorpayPaymentScreen extends StatefulWidget {
+  const RazorpayPaymentScreen({super.key});
+
+  @override
+  State<RazorpayPaymentScreen> createState() => _RazorpayPaymentScreenState();
+}
+
+class _RazorpayPaymentScreenState extends State<RazorpayPaymentScreen> {
+  late Razorpay _razorpay;
+
+  // ✅ Toggle between test/live
+  final bool isTestMode = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  void openCheckout(double amount) {
+    final razorpayKey = isTestMode
+        ? 'rzp_test_6fRiuUhQ6ksrm8' // ✅ Your Test Key ID
+        : 'rzp_live_YourLiveKeyID'; // 🔁 Replace with LIVE when ready
+
+    var options = {
+      'key': razorpayKey,
+      'amount': (amount * 100).toInt(),
+      'name': 'Bazario',
+      'description': 'Order Payment',
+      'prefill': {
+        'contact': '9999999999',
+        'email': FirebaseAuth.instance.currentUser?.email ?? 'test@example.com'
+      },
+      'external': {'wallets': ['paytm']}
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final cart = Provider.of<CartProvider>(context, listen: false);
+
+    await FirebaseFirestore.instance.collection('orders').add({
+      'userId': user?.uid,
+      'timestamp': DateTime.now().toIso8601String(),
+      'items': cart.items.values.map((e) => {
+        'name': e.name,
+        'price': e.price,
+        'image': e.image
+      }).toList(),
+      'total': cart.total,
+      'paymentId': response.paymentId,
+      'status': 'Paid'
+    });
+
+    cart.items.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("✅ Payment Successful")));
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const PaymentSuccessScreen()),
+    );
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("❌ Payment Failed: ${response.message}")));
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Wallet: ${response.walletName}")));
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = Provider.of<CartProvider>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Razorpay Payment")),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () => openCheckout(cart.total),
+          child: Text("Pay ₹${cart.total.toStringAsFixed(2)}"),
+        ),
+      ),
+    );
+  }
+}

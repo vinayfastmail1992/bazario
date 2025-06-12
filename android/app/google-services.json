@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "107702969210",
+    "project_id": "bazario-2b759",
+    "storage_bucket": "bazario-2b759.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:107702969210:android:503c67fb281b3b657fecc3",
+        "android_client_info": {
+          "package_name": "com.company.bazario"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWrVP8Pvxd7Z0kePdpXuhOi4h9b4ly9nY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
